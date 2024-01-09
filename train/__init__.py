@@ -1,1 +1,1 @@
-from train.train import train_CVAE
+from train.train import train_cvae
