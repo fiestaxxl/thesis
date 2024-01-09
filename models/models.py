@@ -345,7 +345,7 @@ class Encoder(nn.Module):
         x_emb = self.emb(x)
         c = torch.nn.functional.interpolate(c.unsqueeze(1), size=(self.seq_len, self.cond_dim), mode='nearest').squeeze(1)
         x_emb = torch.cat([x_emb,c], dim=-1)
-        packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input= x_emb, lengths=l, batch_first=True, enforce_sorted=False)
+        packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input= x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
         outputs, (hidden, cell) = self.lstm(packed_x_embed)
         return outputs, (hidden, cell)
 

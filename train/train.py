@@ -37,6 +37,8 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
     klb_loss_test = 0
     final_loss_test = 0
 
+    model.to(device)
+
     print("STARTING TRAINING \n\n")
 
     for epoch in tqdm(range(1,num_epochs+1)):
@@ -108,7 +110,7 @@ def sequence_mask(lengths, maxlen, dtype=torch.int32):
 def get_losses(y_hat, y, mu, logvar, kld_weight=0.0025):
     #weight = sequence_mask(l,y.shape[1])
     #weight = torch.randint(0,1,(120,4))
-    loss = nn.CrossEntropyLoss()
+    loss = nn.CrossEntropyLoss(ignore_index=33)
     #print(y_hat.shape, torch.permute(y_hat,(0,2,1)).shape, y.shape, weight.shape)
     recons_loss = loss(torch.permute(y_hat,(0,2,1)), y)
     kld_loss = torch.mean(
