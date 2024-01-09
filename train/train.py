@@ -70,6 +70,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
                 x = nn.functional.one_hot(torch.tensor([test_molecules_input[i] for i in n], dtype=torch.int64), num_classes=len(vocab)).to(device)
                 y = torch.tensor([test_molecules_output[i] for i in n], dtype=torch.int64).to(device)
                 c = torch.tensor(np.array([test_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1).to(device)
+                l = torch.tensor(np.array([test_length[i] for i in n]), dtype=torch.int64).to(device)
 
                 y_hat, mu, logvar = model(x,c,l)
 
