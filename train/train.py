@@ -42,7 +42,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
     print("STARTING TRAINING \n\n")
 
     for epoch in tqdm(range(1,num_epochs+1)):
-        for iteration in tqdm(range(iterations)):
+        for iteration in range(1,iterations+1):
 
             #train
             model.train()
@@ -81,6 +81,10 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
                 recon_loss_test += recon_loss_iter.cpu().item()
                 klb_loss_test += klb_loss_iter.cpu().item()
                 final_loss_test += final_loss_iter.cpu().item()
+
+            if iteration%100==0:
+                print(f"End of {iteration} iteration,\n recon_loss_train: {recon_loss/iteration}, recon_loss_test: {recon_loss_test/iteration},\n klb_loss_train: {klb_loss/iteration}, klb_loss_test: {klb_loss_test/iteration},\n total_loss_train: {final_loss/iteration}, total_loss_test: {final_loss_test/iteration}\n")
+
 
         loss_dict_train['recon'].append(recon_loss/iterations)
         loss_dict_train['klb'].append(klb_loss/iterations)
