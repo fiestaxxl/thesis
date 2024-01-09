@@ -42,7 +42,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
     print("STARTING TRAINING \n\n")
 
     for epoch in tqdm(range(1,num_epochs+1)):
-        for iteration in range(iterations):
+        for iteration in tqdm(range(iterations)):
 
             #train
             model.train()
