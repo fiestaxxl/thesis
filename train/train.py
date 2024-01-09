@@ -51,9 +51,9 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             c = torch.tensor(np.array([train_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1).to(device)
 
             optimizer.zero_grad()
-            y_hat, mu, logvar = model(x,c,l)
+            y_hat_softmax, y_hat, mu, logvar = model(x,c,l)
 
-            recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses()
+            recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar)
 
             final_loss_iter.backward()
             optimizer.step()
@@ -72,7 +72,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
                 c = torch.tensor(np.array([test_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1).to(device)
                 l = torch.tensor(np.array([test_length[i] for i in n]), dtype=torch.int64).to(device)
 
-                y_hat, mu, logvar = model(x,c,l)
+                y_hat_softmax, y_hat, mu, logvar = model(x,c,l)
 
                 recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar)
 
@@ -105,7 +105,7 @@ def sequence_mask(lengths, maxlen, dtype=torch.int32):
     mask.type(dtype)
     return mask
 
-def get_losses(y_hat, y, l, mu, logvar, kld_weight=0.0025):
+def get_losses(y_hat, y, mu, logvar, kld_weight=0.0025):
     #weight = sequence_mask(l,y.shape[1])
     #weight = torch.randint(0,1,(120,4))
     loss = nn.CrossEntropyLoss()

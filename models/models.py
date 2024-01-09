@@ -372,8 +372,6 @@ class Parametrizator(nn.Module):
         mu = self.mean(enc_h)
         log_var = self.log_variance(enc_h)
 
-        print(mu.shape, log_var.shape)
-
         z = self.reparametize(mu,log_var)
         return z, mu, log_var
 
