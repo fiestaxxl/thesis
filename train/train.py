@@ -9,12 +9,15 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
 
     train_molecules_input = data_train['x']
     train_molecules_output = data_train['y']
-    train_labels = data_train['l']
+    train_labels = data_train['c']
     vocab = data_train['v']
 
     test_molecules_input = data_test['x']
     test_molecules_output = data_test['y']
-    test_labels = data_test['l']
+    test_labels = data_test['c']
+
+    train_length = data_train['l']
+    test_length = data_test['l']
 
     loss_dict_train = dict()
     loss_dict_train['recon'] = []
@@ -44,10 +47,11 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             n = np.random.randint(len(train_molecules_input), size = 32)
             x = nn.functional.one_hot(torch.tensor([train_molecules_input[i] for i in n], dtype=torch.int64), num_classes=len(vocab)).to(device)
             y = torch.tensor([train_molecules_output[i] for i in n], dtype=torch.int64).to(device)
+            l = torch.tensor(np.array([train_length[i] for i in n]), dtype=torch.int64).to(device)
             c = torch.tensor(np.array([train_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1).to(device)
 
             optimizer.zero_grad()
-            y_hat, mu, logvar = model(x,c)
+            y_hat, mu, logvar = model(x,c,l)
 
             recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses()
 
@@ -67,7 +71,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
                 y = torch.tensor([test_molecules_output[i] for i in n], dtype=torch.int64).to(device)
                 c = torch.tensor(np.array([test_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1).to(device)
 
-                y_hat, mu, logvar = model(x,c)
+                y_hat, mu, logvar = model(x,c,l)
 
                 recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar)
 
