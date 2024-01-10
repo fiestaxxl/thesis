@@ -68,7 +68,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             #test
             model.eval()
             with torch.no_grad():
-                n = np.random.randint(len(test_molecules_input), size = 32)
+                n = np.random.randint(len(test_molecules_input), size = 256)
                 x = nn.functional.one_hot(torch.tensor([test_molecules_input[i] for i in n], dtype=torch.int64), num_classes=len(vocab)).to(device)
                 y = torch.tensor([test_molecules_output[i] for i in n], dtype=torch.int64).to(device)
                 c = nn.functional.normalize(torch.tensor(np.array([test_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1),dim=-3).to(device)

@@ -314,15 +314,16 @@ class TransformerM(nn.Module):
 # CVAE
 
 class Embedding(nn.Module):
-    def __init__(self, emb_dim=300, num_emb=35):
+    def __init__(self, emb_dim=300, num_emb=36):
         super(Embedding,self).__init__()
-        self.emb =nn.Embedding(embedding_dim=emb_dim, num_embeddings=num_emb)
+        self.emb =nn.Embedding(embedding_dim=300, num_embeddings=120, padding_idx=35)
 
     def forward(self,x):
-        return self.emb(x.argmax(dim=-1))
+        # x: bs*seq_len
+        return self.emb(x) #x: bs*seq_len*emd_dim
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim=35, emb_dim=300, num_emb=35, hidden_units=1024, num_layers=3, seq_len=120, cond_dim=3):
+    def __init__(self, input_dim=303, emb_dim=300, num_emb=120, hidden_units=1024, num_layers=3, seq_len=120, cond_dim=3):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_units
         self.num_layers = num_layers
@@ -341,13 +342,15 @@ class Encoder(nn.Module):
                              num_emb=num_emb)
 
     def forward(self, x, c, l):
-        # x: tensor of shape (batch_size, seq_length, hidden_size)
-        x_emb = self.emb(x)
+        # x: tensor of shape (batch_size, seq_length)
+        # c: tensor of shape (bs * cond_dim)
+        x_emb = self.emb(x) #bs*seq_len*emb_dim
         c = torch.nn.functional.interpolate(c.unsqueeze(1), size=(self.seq_len, self.cond_dim), mode='nearest').squeeze(1)
+        #c: bs*seq_len*cond_dim
         x_emb = torch.cat([x_emb,c], dim=-1)
         packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input= x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
-        outputs, (hidden, cell) = self.lstm(packed_x_embed)
-        return outputs, (hidden, cell)
+        _, (h_enc, _) = self.lstm(packed_x_embed)
+        return h_enc
 
 class Parametrizator(nn.Module):
     def __init__(self,hidden_units, latent_dim, num_layers):
@@ -360,7 +363,7 @@ class Parametrizator(nn.Module):
         self.mean = torch.nn.Linear(in_features= self.hidden_size * self.lstm_factor, out_features= self.latent_size)
         self.log_variance = torch.nn.Linear(in_features= self.hidden_size * self.lstm_factor, out_features= self.latent_size)
 
-    def reparametize(self, mu, logvar):
+    def reparametrize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         noise = torch.randn_like(std)
 
@@ -368,11 +371,11 @@ class Parametrizator(nn.Module):
         return z
 
     def forward(self, hid_state):
-        enc_h = hid_state.view(hid_state.shape[1], self.hidden_size*self.lstm_factor)
+        enc_h = hid_state.view(-1, self.hidden_size*self.lstm_factor)
         mu = self.mean(enc_h)
         log_var = self.log_variance(enc_h)
 
-        z = self.reparametize(mu,log_var)
+        z = self.reparametrize(mu,log_var)
         return z, mu, log_var
 
 
@@ -388,6 +391,9 @@ class Decoder(nn.Module):
 
         self.init_hidden_decoder = torch.nn.Linear(in_features= self.latent_size, out_features= self.hidden_size)
 
+        self.fc_h = torch.nn.Linear(in_features= self.latent_size, out_features= self.hidden_size)
+        self.fc_c = torch.nn.Linear(in_features= self.latent_size, out_features= self.hidden_size)
+
         self.lstm = nn.LSTM(
             input_size=latent_dim+cond_dim,
             hidden_size=hidden_units,
@@ -399,20 +405,24 @@ class Decoder(nn.Module):
     def forward(self, z, c):
         c = torch.nn.functional.interpolate(c.unsqueeze(1), size=(self.seq_len, self.cond_dim), mode='nearest').squeeze(1)
 
-        z_inp = z.repeat(1, self.seq_len, 1)
         hidden = z.repeat(1,self.num_layers,1)
-
         batch_size = c.shape[0]
-
-        z_inp = z_inp.view(batch_size, self.seq_len, self.latent_size)
         hidden = hidden.view(self.num_layers, batch_size, self.latent_size)
+        h_0 = torch.tanh(self.fc_h(hidden))
+        c_0 = torch.tanh(self.fc_c(hidden))
 
-        hidden_decoder = self.init_hidden_decoder(hidden)
-        hidden_decoder = (hidden_decoder, hidden_decoder)
+        z = z.unsqueeze(1).repeat(1, self.seq_len, 1)
 
-        z_inp = torch.cat([z_inp,c], dim=-1)
 
-        outputs, (hidden, cell) = self.lstm(z_inp,hidden_decoder)
+        #hidden = hidden.view(self.num_layers, batch_size, self.latent_size)
+
+        #hidden_decoder = self.init_hidden_decoder(hidden)
+        #hidden_decoder = (hidden_decoder, hidden_decoder)
+
+        z_inp = torch.cat([z,c], dim=-1)
+
+        #outputs, (hidden, cell) = self.lstm(z_inp,hidden_decoder)
+        outputs, (_, _) = self.lstm(z_inp, (h_0,c_0))
 
         return outputs
 
@@ -435,7 +445,7 @@ class Predictor(nn.Module):
 
 class CVAE(nn.Module):
     def __init__(self, cond_dim = 3, hidden_units = 512, num_layers = 3, emb_dim = 300, latent_dim = 256,
-                 vocab_size = 35, seq_len = 120):
+                 vocab_size = 36, seq_len = 120):
         super(CVAE, self).__init__()
         self.cond_dim = cond_dim
         self.hidden_units = hidden_units
@@ -469,10 +479,10 @@ class CVAE(nn.Module):
 
     def forward(self, x, c, l):
         #encoding
-        out, state= self.enc(x,c,l)
+        enc_h = self.enc(x,c,l)
 
         #parametrization
-        z, mu, log_var = self.param(state[0])
+        z, mu, log_var = self.param(enc_h)
 
         #decoding
         out = self.pred(self.dec(z,c))
