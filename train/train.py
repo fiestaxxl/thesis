@@ -47,7 +47,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             #train
             model.train()
             n = np.random.randint(len(train_molecules_input), size = 256)
-            x = nn.functional.one_hot(torch.tensor([train_molecules_input[i] for i in n], dtype=torch.int64), num_classes=len(vocab)).to(device)
+            x = torch.tensor([train_molecules_input[i] for i in n], dtype=torch.int64).to(device)
             y = torch.tensor([train_molecules_output[i] for i in n], dtype=torch.int64).to(device)
             l = torch.tensor(np.array([train_length[i] for i in n]), dtype=torch.int64).to(device)
             c = nn.functional.normalize(torch.tensor(np.array([train_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1),dim=-3).to(device)
@@ -69,7 +69,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             model.eval()
             with torch.no_grad():
                 n = np.random.randint(len(test_molecules_input), size = 256)
-                x = nn.functional.one_hot(torch.tensor([test_molecules_input[i] for i in n], dtype=torch.int64), num_classes=len(vocab)).to(device)
+                x = torch.tensor([test_molecules_input[i] for i in n], dtype=torch.int64).to(device)
                 y = torch.tensor([test_molecules_output[i] for i in n], dtype=torch.int64).to(device)
                 c = nn.functional.normalize(torch.tensor(np.array([test_labels[i] for i in n]).astype(float),dtype=torch.float).unsqueeze(1),dim=-3).to(device)
                 l = torch.tensor(np.array([test_length[i] for i in n]), dtype=torch.int64).to(device)
@@ -114,7 +114,7 @@ def sequence_mask(lengths, maxlen, dtype=torch.int32):
 def get_losses(y_hat, y, mu, logvar, kld_weight=0.0055):
     #weight = sequence_mask(l,y.shape[1])
     #weight = torch.randint(0,1,(120,4))
-    loss = nn.CrossEntropyLoss(ignore_index=33)
+    loss = nn.CrossEntropyLoss(ignore_index=35)
     #print(y_hat.shape, torch.permute(y_hat,(0,2,1)).shape, y.shape, weight.shape)
     recons_loss = loss(torch.permute(y_hat,(0,2,1)), y)
     kld_loss = torch.mean(
