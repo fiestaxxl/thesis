@@ -29,19 +29,18 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
     loss_dict_test['klb'] = []
     loss_dict_test['fin'] = []
 
-    recon_loss = 0
-    klb_loss = 0
-    final_loss = 0
-
-    recon_loss_test = 0
-    klb_loss_test = 0
-    final_loss_test = 0
-
     model.to(device)
 
     print("STARTING TRAINING \n\n")
 
     for epoch in tqdm(range(1,num_epochs+1)):
+        recon_loss = 0
+        klb_loss = 0
+        final_loss = 0
+
+        recon_loss_test = 0
+        klb_loss_test = 0
+        final_loss_test = 0
         for iteration in range(1,iterations+1):
 
             #train
