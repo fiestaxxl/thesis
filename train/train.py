@@ -99,7 +99,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
         if epoch%save_iter==0:
             torch.save(model.state_dict(),os.path.join(path,f"CVAE_epoch{epoch}.pth"))
 
-        print(f"End of epoch {epoch},\n recon_loss_train: {loss_dict_train['recon'][-1]}, recon_loss_test: {loss_dict_test['recon'][-1]},\n klb_loss_train: {loss_dict_train['klb'][-1]}, klb_loss_test: {loss_dict_test['klb'][-1]},\n total_loss_train: {loss_dict_train['fin'][-1]}, total_loss_test: {loss_dict_test['fin'][-1]}\n")
+        print(f"\n\nEnd of epoch {epoch},\n recon_loss_train: {loss_dict_train['recon'][-1]}, recon_loss_test: {loss_dict_test['recon'][-1]},\n klb_loss_train: {loss_dict_train['klb'][-1]}, klb_loss_test: {loss_dict_test['klb'][-1]},\n total_loss_train: {loss_dict_train['fin'][-1]}, total_loss_test: {loss_dict_test['fin'][-1]}\n")
 
     return loss_dict_train, loss_dict_test
 
