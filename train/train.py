@@ -57,6 +57,8 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
 
             if (epoch>0) and (iteration>700):
                 beta = 0.005
+            else:
+                beta = 0.000005
 
             recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar, kld_weight=beta)
 
@@ -79,7 +81,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
 
                 y_hat_softmax, y_hat, mu, logvar = model(x,c,l)
 
-                recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar)
+                recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar, kld_weight=beta)
 
                 recon_loss_test += recon_loss_iter.cpu().item()
                 klb_loss_test += klb_loss_iter.cpu().item()
