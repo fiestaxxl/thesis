@@ -316,7 +316,7 @@ class TransformerM(nn.Module):
 class Embedding(nn.Module):
     def __init__(self, emb_dim=300, num_emb=36):
         super(Embedding,self).__init__()
-        self.emb =nn.Embedding(embedding_dim=300, num_embeddings=120, padding_idx=35)
+        self.emb =nn.Embedding(num_embeddings=num_emb, embedding_dim=emb_dim)
 
     def forward(self,x):
         # x: bs*seq_len
@@ -338,17 +338,21 @@ class Encoder(nn.Module):
             bidirectional=False,
         )
 
-        self.emb = Embedding(emb_dim=emb_dim,
+        self.emb_x = Embedding(emb_dim=emb_dim,
                              num_emb=num_emb)
+
+        #nn.init.xavier_normal_(self.lstm)
+
+        #self.emb_c = nn.Linear(cond_dim, emb_dim)
 
     def forward(self, x, c, l):
         # x: tensor of shape (batch_size, seq_length)
         # c: tensor of shape (bs * cond_dim)
-        x_emb = self.emb(x) #bs*seq_len*emb_dim
+        x_emb = self.emb_x(x) #bs*seq_len*emb_dim
         c = torch.nn.functional.interpolate(c.unsqueeze(1), size=(self.seq_len, self.cond_dim), mode='nearest').squeeze(1)
+        x_emb = torch.cat([c,x_emb], dim=-1)
+        packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input=x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
         #c: bs*seq_len*cond_dim
-        x_emb = torch.cat([x_emb,c], dim=-1)
-        packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input= x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
         _, (h_enc, _) = self.lstm(packed_x_embed)
         return h_enc
 
@@ -419,7 +423,7 @@ class Decoder(nn.Module):
         #hidden_decoder = self.init_hidden_decoder(hidden)
         #hidden_decoder = (hidden_decoder, hidden_decoder)
 
-        z_inp = torch.cat([z,c], dim=-1)
+        z_inp = torch.cat([c,z], dim=-1)
 
         #outputs, (hidden, cell) = self.lstm(z_inp,hidden_decoder)
         outputs, (_, _) = self.lstm(z_inp, (h_0,c_0))
@@ -445,7 +449,7 @@ class Predictor(nn.Module):
 
 class CVAE(nn.Module):
     def __init__(self, cond_dim = 3, hidden_units = 512, num_layers = 3, emb_dim = 300, latent_dim = 256,
-                 vocab_size = 36, seq_len = 120):
+                 vocab_size = 36, seq_len = 100):
         super(CVAE, self).__init__()
         self.cond_dim = cond_dim
         self.hidden_units = hidden_units
@@ -454,7 +458,7 @@ class CVAE(nn.Module):
         self.latent_dim = latent_dim
         self.num_emb = vocab_size
         self.seq_len = seq_len
-        self.softmax = nn.Softmax(dim=-1)
+        self.softmax = nn.Softmax(dim=-2)
 
         self.enc = Encoder(input_dim=emb_dim + cond_dim,
                            emb_dim=emb_dim,
@@ -476,6 +480,7 @@ class CVAE(nn.Module):
 
         self.pred = Predictor(hidden_units=hidden_units,
                               classes=self.num_emb)
+
 
     def forward(self, x, c, l):
         #encoding
