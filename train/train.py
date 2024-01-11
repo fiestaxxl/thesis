@@ -41,6 +41,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
         recon_loss_test = 0
         klb_loss_test = 0
         final_loss_test = 0
+        beta = 0.0
         for iteration in range(1,iterations+1):
 
             #train
@@ -54,7 +55,10 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             optimizer.zero_grad()
             y_hat_softmax, y_hat, mu, logvar = model(x,c,l)
 
-            recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar)
+            if (epoch>0) and (iteration>700):
+                beta = 0.005
+
+            recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(y_hat, y, mu, logvar, kld_weight=beta)
 
             final_loss_iter.backward()
             optimizer.step()
@@ -110,7 +114,7 @@ def sequence_mask(lengths, maxlen, dtype=torch.int32):
     mask.type(dtype)
     return mask
 
-def get_losses(y_hat, y, mu, logvar, kld_weight=0.0055):
+def get_losses(y_hat, y, mu, logvar, kld_weight=0.0000):
     #weight = sequence_mask(l,y.shape[1])
     #weight = torch.randint(0,1,(120,4))
     loss = nn.CrossEntropyLoss(ignore_index=35)
