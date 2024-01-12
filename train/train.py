@@ -118,7 +118,7 @@ def sequence_mask(lengths, maxlen, dtype=torch.int32):
 def get_losses(y_hat, y, mu, logvar, kld_weight=0.0000):
     #weight = sequence_mask(l,y.shape[1])
     #weight = torch.randint(0,1,(120,4))
-    loss = nn.CrossEntropyLoss(ignore_index=35)
+    loss = nn.CrossEntropyLoss(ignore_index=0)
     #print(y_hat.shape, torch.permute(y_hat,(0,2,1)).shape, y.shape, weight.shape)
     recons_loss = loss(torch.permute(y_hat,(0,2,1)), y)
     kld_loss = torch.mean(

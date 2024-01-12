@@ -18,15 +18,15 @@ def load_data(n, seq_length):
 
 
     chars+=('',) #End of smiles
-    chars+=('X',) #Start of smiles
-    #vocab['<end>'] = len(chars)-1
-    vocab['X'] = 0
+    chars+=('Q',) #Start of smiles
+    vocab['X'] = 34
+    vocab['Q'] = 0
 
 
     length = np.array([len(s)+3 for s in smiles])
 
-    smiles_input = [(s).ljust(seq_length, 'X') for s in smiles]
-    smiles_output = [s.ljust(seq_length, 'X') for s in smiles]
+    smiles_input = [(s+'X').ljust(seq_length, 'Q') for s in smiles]
+    smiles_output = [(s+'X').ljust(seq_length, 'Q') for s in smiles]
 
     smiles_input = np.array([np.array(list(map(vocab.get, s)))for s in smiles_input])
     smiles_output = np.array([np.array(list(map(vocab.get, s)))for s in smiles_output])
