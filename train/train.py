@@ -41,7 +41,6 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
         recon_loss_test = 0
         klb_loss_test = 0
         final_loss_test = 0
-        beta = 0.0
         for iteration in range(1,iterations+1):
 
             #train
@@ -55,7 +54,7 @@ def train_cvae(model, optimizer, iterations, data_train, data_test, num_epochs, 
             optimizer.zero_grad()
             y_hat_softmax, y_hat, mu, logvar = model(x,c,l)
 
-            if (epoch>1) and (iteration>700):
+            if (epoch>2) and (iteration>700):
                 beta = 0.005
             else:
                 beta = 0.0000001
