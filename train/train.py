@@ -39,7 +39,7 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
 
             #train
             X = X.to(device)
-            C = c.to(device)
+            c = c.to(device)
             y = y.to(device)
 
             optimizer.zero_grad()
@@ -66,7 +66,7 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
                     (X,c), y = next(iter(train_loader))
 
                     X = X.to(device)
-                    C = c.to(device)
+                    c = c.to(device)
                     y = y.to(device)
 
                     _, preds, mu, logvar = model(X,c)
