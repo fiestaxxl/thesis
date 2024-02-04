@@ -447,9 +447,8 @@ class Predictor(nn.Module):
 
         self.fc1 = nn.Linear(hidden_size, 128)
         self.fc2 = nn.Linear(128,vocab_size)
-        self.softmax = nn.Softmax(dim=-1)
 
-        self.predictor = nn.Sequential(self.fc1,self.fc2,self.softmax)
+        self.predictor = nn.Sequential(self.fc1,self.fc2)
 
     def forward(self, x):
         return self.predictor(x)
@@ -477,6 +476,7 @@ class CVAE(nn.Module):
         self.parametrize = Parametrizator(hidden_size, latent_dim, num_layers)
         self.decoder = Decoder(seq_len, cond_dim, latent_dim, hidden_size, num_layers)
         self.predictor = Predictor(hidden_size, vocab_size)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, c):
         h = self.encoder(x,c)
@@ -484,7 +484,7 @@ class CVAE(nn.Module):
         out, _ = self.decoder(z,c)
         preds = self.predictor(out)
 
-        return preds, mu, logvar
+        return self.softmax(preds), preds, mu, logvar
 
     def sample(self, z, c):
         with torch.no_grad():
