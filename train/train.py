@@ -77,7 +77,8 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
                     klb_loss_test += klb_loss_iter.cpu().item()
                     final_loss_test += final_loss_iter.cpu().item()
 
-                    print(f"End of {iteration} iteration,\n recon_loss_train: {recon_loss/iteration}, recon_loss_test: {recon_loss_test/iteration*cntr},\n klb_loss_train: {klb_loss/iteration}, klb_loss_test: {klb_loss_test/iteration*cntr},\n total_loss_train: {final_loss/iteration}, total_loss_test: {final_loss_test/iteration*cntr}\n")
+                    if iteration%(cntr*50)==0:
+                        print(f"End of {iteration} iteration,\n recon_loss_train: {recon_loss/iteration}, recon_loss_test: {recon_loss_test/iteration*cntr},\n klb_loss_train: {klb_loss/iteration}, klb_loss_test: {klb_loss_test/iteration*cntr},\n total_loss_train: {final_loss/iteration}, total_loss_test: {final_loss_test/iteration*cntr}\n")
                 model.train()
 
 
