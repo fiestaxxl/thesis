@@ -62,14 +62,14 @@ def load_data(path, train_split, batch_size, seq_length):
             return (X, c), y
 
     all_data = len(smiles_input)
-    x_train = torch.tensor(smiles_input[0:int(all_data*train_split)], dtype=torch.float)
-    x_test = torch.tensor(smiles_input[int(all_data*train_split):],dtype=torch.float)
+    x_train = torch.tensor(smiles_input[0:int(all_data*train_split)], dtype=torch.long)
+    x_test = torch.tensor(smiles_input[int(all_data*train_split):],dtype=torch.long)
 
     c_train = prop[0:int(all_data*train_split)]
     c_test = prop[int(all_data*train_split):]
 
-    y_train = torch.tensor(smiles_input[0:int(all_data*train_split)],dtype=torch.float)
-    y_test = torch.tensor(smiles_input[int(all_data*train_split):],dtype=torch.float)
+    y_train = torch.tensor(smiles_input[0:int(all_data*train_split)],dtype=torch.long)
+    y_test = torch.tensor(smiles_input[int(all_data*train_split):],dtype=torch.long)
 
     train_set = MoleculeDataset(x_train, c_train, y_train)
     test_set = MoleculeDataset(x_test, c_test, y_test)
