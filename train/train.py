@@ -8,8 +8,6 @@ import torch.nn as nn
 def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, path, device):
 
 
-    model.to(device)
-
     print("STARTING TRAINING \n\n")
     model.train()
     cntr = len(train_loader)//len(test_loader)
@@ -40,9 +38,9 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
             iteration+=1
 
             #train
-            X.to(device)
-            c.to(device)
-            y.to(device)
+            X = X.to(device)
+            C = c.to(device)
+            y = y.to(device)
 
             optimizer.zero_grad()
 
@@ -66,6 +64,11 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
                 model.eval()
                 with torch.no_grad():
                     (X,c), y = next(iter(train_loader))
+
+                    X = X.to(device)
+                    C = c.to(device)
+                    y = y.to(device)
+
                     _, preds, mu, logvar = model(X,c)
 
                     recon_loss_iter, klb_loss_iter, final_loss_iter = get_losses(preds, y, mu, logvar, kld_weight=beta)
