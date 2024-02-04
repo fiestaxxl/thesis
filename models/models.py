@@ -359,7 +359,7 @@ class Encoder(nn.Module):
         x_emb = self.emb_x(x) #bs*seq_len*emb_dim
         c = c.unsqueeze(1).repeat(1,self.seq_len,1) #bs*seq_len*cond_dim
 
-        x_emb = torch.cat([x_emb, c], dim=-1)
+        x_emb = torch.cat([x_emb, c], dim=-1).float()
         #packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input=x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
         #_, (h_enc, _) = self.lstm(packed_x_embed)
 
@@ -430,7 +430,7 @@ class Decoder(nn.Module):
         z = z.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*latent_dim
         c = c.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*cond_dim
 
-        z = torch.cat([z,c], dim=-1)    #bs*seq_len*(latent_dim+cond_dim)
+        z = torch.cat([z,c], dim=-1).float()   #bs*seq_len*(latent_dim+cond_dim)
 
         if hidden is None:
             out, hid = self.dec(z,(h_0,c_0))
