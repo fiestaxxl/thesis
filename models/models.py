@@ -326,23 +326,17 @@ class Embedding(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self,
-                 vocab_size,
-                 seq_len,
                  emb_dim,
                  cond_dim,
                  hidden_size,
-                 num_layers,
-                 padding_idx=None
+                 num_layers
                  ):
 
         super(Encoder, self).__init__()
 
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.seq_len = seq_len
         self.cond_dim = cond_dim
-
-        self.emb_x = Embedding(vocab_size, emb_dim, padding_idx)
 
         self.enc = nn.LSTM(
             input_size = emb_dim+cond_dim,
@@ -353,13 +347,13 @@ class Encoder(nn.Module):
         )
 
     def forward(self, x, c):
-        # x: tensor of shape (bs * seq_length)
+        # x: tensor of shape (bs * seq_length * emb_dim)
         # c: tensor of shape (bs * cond_dim)
 
-        x_emb = self.emb_x(x) #bs*seq_len*emb_dim
-        c = c.unsqueeze(1).repeat(1,self.seq_len,1) #bs*seq_len*cond_dim
+        seq_len = x.shape[1]
+        c = c.unsqueeze(1).repeat(1,seq_len,1) #bs*seq_len*cond_dim
 
-        x_emb = torch.cat([x_emb, c], dim=-1).float()
+        x_emb = torch.cat([x, c], dim=-1).float()
         #packed_x_embed = torch.nn.utils.rnn.pack_padded_sequence(input=x_emb, lengths=l.to('cpu'), batch_first=True, enforce_sorted=False)
         #_, (h_enc, _) = self.lstm(packed_x_embed)
 
@@ -395,7 +389,7 @@ class Parametrizator(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(self,
-                 seq_len,
+                 emb_dim,
                  cond_dim,
                  latent_dim,
                  hidden_size,
@@ -404,22 +398,23 @@ class Decoder(nn.Module):
 
         super(Decoder, self).__init__()
 
-        self.seq_len = seq_len
+        self.emb_dim = emb_dim
         self.num_layers = num_layers
 
         self.c_init = nn.Linear(latent_dim, hidden_size)
         self.h_init = nn.Linear(latent_dim, hidden_size)
 
         self.dec = nn.LSTM(
-            input_size = latent_dim+cond_dim,
+            input_size = latent_dim+emb_dim+cond_dim,
             hidden_size = hidden_size,
             num_layers = num_layers,
             batch_first = True,
             bidirectional = False,
         )
 
-    def forward(self, z, c, hidden=None):
+    def forward(self, z, x, c, hidden=None):
         # z: tensor of shape (bs * latent_dim)
+        # x: tensor of shape (bs * seq_length * emb_dim)
         # c: tensor of shape (bs * cond_dim)
 
         z_hid = z.unsqueeze(0).repeat(self.num_layers, 1, 1) #n_layers*bs*latent_dim
@@ -427,10 +422,12 @@ class Decoder(nn.Module):
         c_0 = torch.tanh(self.c_init(z_hid))    #n_layers*bs*hid_size
         h_0 = torch.tanh(self.h_init(z_hid))    #n_layers*bs*hid_size
 
-        z = z.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*latent_dim
-        c = c.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*cond_dim
+        seq_len = x.shape[1]
 
-        z = torch.cat([z,c], dim=-1).float()   #bs*seq_len*(latent_dim+cond_dim)
+        z = z.unsqueeze(1).repeat(1, seq_len, 1) # bs*seq_len*latent_dim
+        c = c.unsqueeze(1).repeat(1, seq_len, 1) # bs*seq_len*cond_dim
+
+        z = torch.cat([z,x,c], dim=-1).float()   #bs*seq_len*(latent_dim+emb_dim+cond_dim)
 
         if hidden is None:
             out, hid = self.dec(z,(h_0,c_0))
@@ -455,7 +452,7 @@ class Predictor(nn.Module):
 
 
 class CVAE(nn.Module):
-    def __init__(self, vocab_size, seq_len,
+    def __init__(self, vocab_size,
                  emb_dim, cond_dim,
                  hidden_size, latent_dim,
                  num_layers, padding_idx=None):
@@ -463,39 +460,44 @@ class CVAE(nn.Module):
 
         self.num_layers = num_layers
         self.hidden_size = hidden_size
-        self.seq_len = seq_len
 
-        self.encoder = Encoder(vocab_size,
-                               seq_len,
-                               emb_dim,
+        self.emb_x = Embedding(vocab_size, emb_dim, padding_idx)
+
+        self.encoder = Encoder(emb_dim,
                                cond_dim,
                                hidden_size,
-                               num_layers,
-                               padding_idx)
+                               num_layers)
 
         self.parametrize = Parametrizator(hidden_size, latent_dim, num_layers)
-        self.decoder = Decoder(seq_len, cond_dim, latent_dim, hidden_size, num_layers)
+        self.decoder = Decoder(emb_dim, cond_dim, latent_dim, hidden_size, num_layers)
         self.predictor = Predictor(hidden_size, vocab_size)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, c):
-        h = self.encoder(x,c)
+        x_emb = self.emb_x(x) #bs*seq_len*emb_dim
+        h = self.encoder(x_emb,c)
         z, mu, logvar = self.parametrize(h)
-        out, _ = self.decoder(z,c)
+        out, _ = self.decoder(z,x_emb,c)
         preds = self.predictor(out)
 
         return self.softmax(preds), preds, mu, logvar
 
-    def sample(self, z, c):
+    def sample(self, z, x, c, seq_len):
+        # z: tensor of shape (bs * latent_dim)
+        # x: tensor of shape (bs * 1)
+        # c: tensor of shape (bs * cond_dim)
+
         with torch.no_grad():
             hidden = (torch.zeros((self.num_layers, z.size(0), self.hidden_size)),
                       torch.zeros((self.num_layers, z.size(0), self.hidden_size)))
 
-            outputs = []
+            outputs = [x.item()]
 
-            for i in range(self.seq_len):
-                output, hidden = self.decoder(z, c, hidden)
-                output = self.predictor(output)
-                outputs.append(output[:,i,:].argmax(-1).item())
+            for _ in range(1,seq_len):
+                x = self.emb_x(x) #(bs * (1+i) * emb_dim)
+                x, hidden = self.decoder(z, x, c, hidden)
+                x = self.predictor(x) #(bs*seq_len*vocab_size)
+                x = x.argmax(-1) #(bs*(1+i))
+                outputs.append(x[:,-1].item())
 
             return outputs

@@ -123,7 +123,9 @@ def train_cvae(model, optimizer, epochs, train_loader, test_loader, save_iter, p
 def get_losses(y_hat, y, mu, logvar, kld_weight=0.0000):
 
     loss = nn.CrossEntropyLoss(ignore_index=0)
-    recons_loss = loss(y_hat.permute(0,2,1), y)
+    vocab_size = y_hat.shape[-1]
+    #recons_loss = loss(y_hat.permute(0,2,1), y)
+    recons_loss = loss(y_hat.view(-1,vocab_size), y.view(-1))
     kld_loss = torch.mean(
             -0.5 * torch.sum(1 + logvar - mu**2 - logvar.exp(), dim=1), dim=0
         )
