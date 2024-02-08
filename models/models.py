@@ -394,25 +394,28 @@ class Decoder(nn.Module):
                  latent_dim,
                  hidden_size,
                  num_layers,
+                 seq_len
                  ):
 
         super(Decoder, self).__init__()
 
         self.emb_dim = emb_dim
         self.num_layers = num_layers
+        self.seq_len = seq_len
 
         self.c_init = nn.Linear(latent_dim, hidden_size)
         self.h_init = nn.Linear(latent_dim, hidden_size)
 
         self.dec = nn.LSTM(
-            input_size = latent_dim+emb_dim+cond_dim,
+            #input_size = latent_dim+emb_dim+cond_dim,
+            input_size = latent_dim+cond_dim,
             hidden_size = hidden_size,
             num_layers = num_layers,
             batch_first = True,
             bidirectional = False,
         )
 
-    def forward(self, z, x, c, hidden=None):
+    def forward(self, z, c, hidden=None):
         # z: tensor of shape (bs * latent_dim)
         # x: tensor of shape (bs * seq_length * emb_dim)
         # c: tensor of shape (bs * cond_dim)
@@ -422,12 +425,12 @@ class Decoder(nn.Module):
         c_0 = torch.tanh(self.c_init(z_hid))    #n_layers*bs*hid_size
         h_0 = torch.tanh(self.h_init(z_hid))    #n_layers*bs*hid_size
 
-        seq_len = x.shape[1]
+        #seq_len = x.shape[1]
 
-        z = z.unsqueeze(1).repeat(1, seq_len, 1) # bs*seq_len*latent_dim
-        c = c.unsqueeze(1).repeat(1, seq_len, 1) # bs*seq_len*cond_dim
+        z = z.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*latent_dim
+        c = c.unsqueeze(1).repeat(1, self.seq_len, 1) # bs*seq_len*cond_dim
 
-        z = torch.cat([z,x,c], dim=-1).float()   #bs*seq_len*(latent_dim+emb_dim+cond_dim)
+        z = torch.cat([z,c], dim=-1).float()   #bs*seq_len*(latent_dim+emb_dim+cond_dim)
 
         if hidden is None:
             out, hid = self.dec(z,(h_0,c_0))
@@ -455,7 +458,7 @@ class CVAE(nn.Module):
     def __init__(self, vocab_size,
                  emb_dim, cond_dim,
                  hidden_size, latent_dim,
-                 num_layers, padding_idx=None):
+                 num_layers, seq_len, padding_idx=None):
         super(CVAE, self).__init__()
 
         self.num_layers = num_layers
@@ -469,18 +472,23 @@ class CVAE(nn.Module):
                                num_layers)
 
         self.parametrize = Parametrizator(hidden_size, latent_dim, num_layers)
-        self.decoder = Decoder(emb_dim, cond_dim, latent_dim, hidden_size, num_layers)
+        self.decode = Decoder(emb_dim, cond_dim, latent_dim, hidden_size, num_layers, seq_len)
         self.predictor = Predictor(hidden_size, vocab_size)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, c):
-        x_emb = self.emb_x(x) #bs*seq_len*emb_dim
-        h = self.encoder(x_emb,c)
-        z, mu, logvar = self.parametrize(h)
-        out, _ = self.decoder(z,x_emb,c)
+        z, mu, logvar = self.encode(x,c)
+        out, _ = self.decode(z,c)
         preds = self.predictor(out)
 
         return self.softmax(preds), preds, mu, logvar
+
+    def encode(self,x,c):
+        x_emb = self.emb_x(x) #bs*seq_len*emb_dim
+        h = self.encoder(x_emb,c)
+        z, mu, logvar = self.parametrize(h)
+        return z, mu, logvar
+
 
     def sample(self, z, x, c, seq_len):
         # z: tensor of shape (bs * latent_dim)
